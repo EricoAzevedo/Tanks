@@ -1,0 +1,92 @@
+/* This is a PandaBT Script, It is used to create behaviour trees. It starts on the root tree and makes its way down a tree.
+There are two type of nodes, task nodes and structural nodes. Task nodes are the leaves of the tree and are a reference to a 
+function in the TanksAI.cs script. When PandaBT reaches one, it  runs the function that’s written in the TanksAI.CS. Structural nodes 
+are part of PandaBT and define the execution flow of the behaviour tree. Below are the nodes I used and a little description on how they work:
+
+ fallback: A fallback node will run its child one by one, from top to bottom, as long as they fail. It succeeds on the first child that succeeds and it fails when all children fail. 
+ 
+ while: A while node will first check a condition and if it is true, it will run its children.
+ 
+ race: A race node will run all of its children at the same time and will succeed when one of its children succeeds
+ 
+ sequence: Similar to the fallback node, a sequence node will run all of its children from top to bottom but unlike the fallback node, it will only move to the next child if the one it’s currently on succeeds.
+ 
+ tree: A tree node has one child and can be referenced from another tree by its name. A behaviour tree requires one tree named "Root" which is the first node that is ticked making it the entrance point for the execution flow. 
+ 
+ There are several other nodes but these are the ones that are used in this script.
+
+You can see the execution flow in the PandaBT component that's in the inspector. Green shows the nodes that have succeeded and red shows the nodes that have failed, blue are the nodes that are currently running. */
+
+
+//This root node is used to run all the different trees depending on the state the AI in in
+tree("Root") 
+            race
+                 while not isGameRunning                          
+                             tree("gameNotStarted")
+                 while isRoaming                          
+                         tree("roaming")
+                 while isEvading
+                         tree("evading")
+                 while isHunting
+                         tree("hunting")
+                 while isAlertRoaming
+                        tree("alertroaming")
+  
+            
+                                
+//This tree checks if the game is running, if it isn't then it succeeds causing pandaBT to loop back to this tree
+tree("gameNotStarted")
+            Succeed
+                    
+//This tree is used when the AI needs to be roaming around the level. It selects a random point on the level and moves the tank towards it
+tree("roaming")
+            sequence                         
+                SelectRandomWaypoint                                    
+                MoveToTargetPos            
+                CanSeeEnemy
+                race
+                    while canSeeEnemyTank
+                            ToHuntingState
+                    while not canSeeEnemyTank
+                            Succeed
+
+
+                                               
+//This tree is used when the AI needs to avoid the enemy tank. It finds a waypoint that can't be seen by the enemy tank and moves towards it                                                  
+tree("evading")
+            sequence
+                Timer
+                TimerChecker
+                CreateEvadeWaypointsList
+                FindEvadePosition
+                MoveToTargetPos
+                        
+//This tree is used when the AI needs to follow the enemy tank and fire at it.                        
+tree("hunting")
+            sequence
+                Timer
+                UpdateTargetPos
+                MoveToTargetPos
+                CanSeeEnemy
+                race                        
+                    while canSeeEnemyTank
+                            FireShell   
+                    while not canSeeEnemyTank
+                            ToAlertRoamState                                  
+                                   
+
+//This tree is used when the AI loses sight of the enemy tank. It selects a random points around the last position it saw the enemy tank and moves towards it                      
+tree("alertroaming")
+            sequence
+                Timer
+                TimerChecker
+                CreateAlertRoamPos
+                MoveToTargetPos
+                CanSeeEnemy
+                race
+                    while canSeeEnemyTank
+                            ToHuntingState
+                    while not canSeeEnemyTank
+                            Succeed
+                                 
+
